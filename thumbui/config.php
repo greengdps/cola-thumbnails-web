@@ -1,8 +1,6 @@
 <?php
-// GDPS
-$gdps = "https://gdps.dimisaio.be/database";
+// Account ID to send the message as...
 $accountID = 889;
-$gjp2 = "redacted";
 
 // CLOUDFLARE TURNSTILE
 $siteKey = "redacted";

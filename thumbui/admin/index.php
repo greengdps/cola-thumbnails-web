@@ -3,7 +3,7 @@ require __DIR__ . "/../config.php";
 // ini_set("display_errors", 1);
 session_start();
 
-function shimmy($string) {
+function base64_encodesafe($string) {
     $data = base64_encode($string);
     $data = str_replace(array('+','/','='),array('-','_',''),$data);
     return $data;
@@ -28,11 +28,13 @@ function cipher($plaintext, $key) {
   return $cipher;
 }
 
-
 if(empty($_SESSION["id"])) exit(header("Location: /"));
-$check = intval(file_get_contents("$gdps/isAdmin.php?id=" . intval($_SESSION["id"])));
-if($check <= 0) exit(header("Location: /"));
-require __DIR__ . "/../connect.php";
+
+require __DIR__ . "/../../incl/lib/connection.php";
+
+$query = $db->prepare("SELECT roleID FROM roleassign WHERE accountID=:id");
+$query->execute([":id" => intval($_GET["id"])]);
+if($query->rowCount() == 0 || $query->fetchColumn() <= 0) exit(header("Location: /"));
 
 if(!empty($_POST["action"])) {
   	$action = strtolower($_POST["action"]);
@@ -54,44 +56,25 @@ if(!empty($_POST["action"])) {
   
   	$message = "Your thumbnail has been ";
   	if($action == "approve") {
-      	rename(__DIR__ . "/../pending/" . $post["levelid"] . ".png", __DIR__ . "/../thumbs/" . $post["levelid"] . ".png");
+      	rename(__DIR__ . "/../../pending/" . $post["levelid"] . ".png", __DIR__ . "/../../thumbs/" . $post["levelid"] . ".png");
       	echo "<h1>Approved :D</h1>";
       	$message .= "approved! We thank you for your help!";
     } else {
-    	unlink(__DIR__ . "/../pending/" . $post["levelid"] . ".png");
+    	unlink(__DIR__ . "/../../pending/" . $post["levelid"] . ".png");
 		$message .= "denied. Reason: " . $_POST["reason"];
-      	if($action == "ban") {
-        	$query = $db->prepare("INSERT INTO bans (userid, reason) VALUES (:id, :reason)");
-          	$query->execute([":id" => $post["authorid"], ":reason" => $_POST["reason"]]);
-          	echo "<h1>User banned!</h1>";
-          	$message .= " (you can't post level thumbnails anymore)";
-        } else {
-          	echo "<h1>Post denied!</h1>";
-        }
+      	echo "<h1>Post denied!</h1>";
     }
-  
-  	
-  
-  	$post = [
-    	"accountID" => $accountID,
-      	"gjp2" => $gjp2,
-      	"toAccountID" => $post["authorid"],
-      	"subject" => shimmy("Level submission (Level " . $post["levelid"] . ")"),
-      	"body" => shimmy(cipher($message, 14251))
-    ];
-  
-  
-  	$ch = curl_init("$gdps/uploadGJMessage20.php");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
 
-    // execute!
-    $code = intval(curl_exec($ch));
-  
-  	echo "(dbg gd: $code)";
-
-    // close the connection, release resources used
-    curl_close($ch);
+	$query = $db->prepare("SELECT userName, userID FROM users WHERE extID = :id");
+    $query->execute([":id" => $accountID]);
+	
+	if($query->rowCount() > 0) {
+		$res = $query->fetch();
+		$subject = base64_encodesafe("Level submission (Level " . $post["levelid"] . ")");
+		$body = base64_encodesafe(cipher($message, 14251));
+		$query = $db->prepare("INSERT INTO messages (subject, body, accID, userID, userName, toAccountID, secret, timestamp) VALUES (:subject, :body, :accID, :userID, :userName, :toAccountID, :secret, :uploadDate)");
+		$query->execute([':subject' => $subject, ':body' => $body, ':accID' => $accountID, ':userID' => $res["userID"], ':userName' => $res["userName"], ':toAccountID' => $post["authorid"], ':secret' => "Wmfd2893gb7", ':uploadDate' => time()]);
+	}
 }
 
 
@@ -114,8 +97,7 @@ foreach($reqs as $req) {
             <input type="hidden" name="id" value="$reqID">
             <input type="submit" name="action" value="Approve">
             <input type="submit" name="action" value="Deny">
-            <input type="submit" name="action" value="Ban">
-            <input type="text" name="reason" placeholder="Reason for denying/ban">
+            <input type="text" name="reason" placeholder="Reason for denying">
         </form>
     EOF;
 }

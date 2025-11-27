@@ -90,7 +90,7 @@ switch($_POST["action"]) {
     	echo "<center><h1>Only PNGs are supported.</h1></center>";
       	break;
     }
-    if(file_exists(__DIR__ . "/thumbs/" . intval($_POST["levelid"]) . ".png") || file_exists(__DIR__ . "/pending/" . intval($_POST["levelid"]) . ".png")) {
+    if(file_exists(__DIR__ . "/../thumbs/" . intval($_POST["levelid"]) . ".png") || file_exists(__DIR__ . "/../pending/" . intval($_POST["levelid"]) . ".png")) {
 		echo "<center><h1>Either the thumbnail has been posted or is pending.</h1></center>";
       	break;
     }
@@ -98,15 +98,15 @@ switch($_POST["action"]) {
       	echo "<center><h1>Failed Captcha</h1></center>";
     	break;
     }
-    require "connect.php";
-    $query = $db->prepare("SELECT reason FROM bans WHERE userid=:id");
+    require __DIR__ . "/../incl/lib/connection.php";
+    $query = $db->prepare("SELECT reason FROM bans WHERE person=:id AND banType = 4 AND personType = 0 AND isActive = 1");
     $query->execute([':id' => $_SESSION["id"]]);
     if($query->rowCount() != 0) {
-      	$reason = htmlspecialchars($query->fetchColumn());
+      	$reason = htmlspecialchars(base64_decode($query->fetchColumn()));
       	echo "<center><h1>You have been banned!</h1><h4>$reason</h4></center>";
     	break;
     }
-    move_uploaded_file($_FILES["thumbnail"]["tmp_name"], "pending/" . intval($_POST["levelid"]) . ".png");
+    move_uploaded_file($_FILES["thumbnail"]["tmp_name"], "../pending/" . intval($_POST["levelid"]) . ".png");
     $query = $db->prepare("INSERT INTO posts (author, authorid, levelid) VALUES (:a, :b, :c)");
     $query->execute([':a' => $_SESSION["username"], ':b' => $_SESSION["id"], ':c' => intval($_POST["levelid"])]);
     echo "<center><h1>Uploaded successfully! Awaiting approval</h1></center>";
