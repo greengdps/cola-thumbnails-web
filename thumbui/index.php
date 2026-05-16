@@ -86,7 +86,18 @@ switch($_POST["action"]) {
     	echo "<center><h1>Level ID or Thumbnail not specified</h1></center>";
       	break;
     }
-    if(pathinfo($_FILES["thumbnail"]["name"], PATHINFO_EXTENSION) != 'png') {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $filename = $_FILES["thumbnail"]["tmp_name"];
+    
+    
+    if (!is_uploaded_file($filename)) {
+    	die("Invalid upload");
+	}
+    
+    $mime  = finfo_file($finfo, $filename);
+    finfo_close($finfo);
+	
+    if(!$img || $mime !== 'image/png') {
     	echo "<center><h1>Only PNGs are supported.</h1></center>";
       	break;
     }
